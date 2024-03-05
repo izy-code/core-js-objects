@@ -365,35 +365,95 @@ function group(array, keySelector, valueSelector) {
  *  For more examples see unit tests.
  */
 
-const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
-  },
+class CSSSelector {
+  static selectorsOrder = {
+    element: 0,
+    id: 1,
+    class: 2,
+    attr: 3,
+    pseudoClass: 4,
+    pseudoElement: 5,
+  };
 
-  id(/* value */) {
-    throw new Error('Not implemented');
-  },
+  constructor() {
+    this.selectors = [];
+    this.selectorTypes = [];
+  }
 
-  class(/* value */) {
-    throw new Error('Not implemented');
-  },
+  #validateSelector(selectorType) {
+    if (
+      ['element', 'id', 'pseudoElement'].includes(selectorType) &&
+      this.selectorTypes.includes(selectorType)
+    ) {
+      throw new Error(
+        `Element, id and pseudo-element should not occur more then one time inside the selector`
+      );
+    }
 
-  attr(/* value */) {
-    throw new Error('Not implemented');
-  },
+    if (
+      CSSSelector.selectorsOrder[this.selectorTypes.at(-1)] >
+      CSSSelector.selectorsOrder[selectorType]
+    ) {
+      throw new Error(
+        `Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element`
+      );
+    }
+  }
 
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
-  },
+  #handleSelector(selectorType, value) {
+    const returnedInstance = new CSSSelector();
 
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
-  },
+    returnedInstance.selectorTypes = this.selectorTypes.slice();
+    returnedInstance.selectors = this.selectors.slice();
+    returnedInstance.#validateSelector(selectorType);
+    returnedInstance.selectorTypes.push(selectorType);
+    returnedInstance.selectors.push(value);
 
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
-  },
-};
+    return returnedInstance;
+  }
+
+  element(value) {
+    return this.#handleSelector('element', value);
+  }
+
+  id(value) {
+    return this.#handleSelector('id', `#${value}`);
+  }
+
+  class(value) {
+    return this.#handleSelector('class', `.${value}`);
+  }
+
+  attr(value) {
+    return this.#handleSelector('attr', `[${value}]`);
+  }
+
+  pseudoClass(value) {
+    return this.#handleSelector('pseudoClass', `:${value}`);
+  }
+
+  pseudoElement(value) {
+    return this.#handleSelector('pseudoElement', `::${value}`);
+  }
+
+  combine(selector1, combinator, selector2) {
+    const returnedInstance = new CSSSelector();
+
+    returnedInstance.selectors = this.selectors.slice();
+    returnedInstance.selectorTypes = this.selectorTypes.slice();
+
+    returnedInstance.selectors.push(
+      `${selector1.stringify()} ${combinator} ${selector2.stringify()}`
+    );
+    return returnedInstance;
+  }
+
+  stringify() {
+    return this.selectors.join('');
+  }
+}
+
+const cssSelectorBuilder = new CSSSelector();
 
 module.exports = {
   shallowCopy,
